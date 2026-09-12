@@ -1,0 +1,150 @@
+You are given a 2D integer array intervals, where intervals[i] = [li, ri, weighti]. Interval i starts at position li and ends at ri, and has a weight of weighti. You can choose up to 4 non-overlapping intervals. The score of the chosen intervals is defined as the total sum of their weights.
+
+Return the lexicographically smallest array of at most 4 indices from intervals with maximum score, representing your choice of non-overlapping intervals.
+
+Two intervals are said to be non-overlapping if they do not share any points. In particular, intervals sharing a left or right boundary are considered overlapping.
+
+ 
+
+Example 1:
+
+Input: intervals = [[1,3,2],[4,5,2],[1,5,5],[6,9,3],[6,7,1],[8,9,1]]
+
+Output: [2,3]
+
+Explanation:
+
+You can choose the intervals with indices 2, and 3 with respective weights of 5, and 3.
+
+Example 2:
+
+Input: intervals = [[5,8,1],[6,7,7],[4,7,3],[9,10,6],[7,8,2],[11,14,3],[3,5,5]]
+
+Output: [1,3,5,6]
+
+Explanation:
+
+You can choose the intervals with indices 1, 3, 5, and 6 with respective weights of 7, 6, 3, and 5.
+
+ 
+
+Constraints:
+
+1 <= intevals.length <= 5 * 104
+intervals[i].length == 3
+intervals[i] = [li, ri, weighti]
+1 <= li <= ri <= 109
+1 <= weighti <= 109
+
+func maximumWeight(intervals [][]int) []int {
+	n := len(intervals)
+	if n == 0 {
+		return []int{}
+	}
+
+	type iv struct {
+		l, r, w, idx int
+	}
+
+	sorted := make([]iv, n)
+	for i, v := range intervals {
+		sorted[i] = iv{v[0], v[1], v[2], i}
+	}
+
+	// Сортируем по правой границе
+	sort.Slice(sorted, func(a, b int) bool {
+		return sorted[a].r < sorted[b].r
+	})
+
+	ris := make([]int, n)
+	for i, s := range sorted {
+		ris[i] = s.r
+	}
+
+	// Вспомогательная функция для сравнения состояний
+	type state struct {
+		score   int64
+		indices []int
+	}
+
+	better := func(a, b state) state {
+		if a.score < 0 {
+			return b
+		}
+		if b.score < 0 {
+			return a
+		}
+		if a.score != b.score {
+			if a.score > b.score {
+				return a
+			}
+			return b
+		}
+		// При равном счёте выбираем лексикографически меньший массив индексов
+		for i := 0; i < len(a.indices) && i < len(b.indices); i++ {
+			if a.indices[i] < b.indices[i] {
+				return a
+			}
+			if a.indices[i] > b.indices[i] {
+				return b
+			}
+		}
+		if len(a.indices) <= len(b.indices) {
+			return a
+		}
+		return b
+	}
+
+	insertSorted := func(arr []int, v int) []int {
+		i := sort.SearchInts(arr, v)
+		res := make([]int, len(arr)+1)
+		copy(res, arr[:i])
+		res[i] = v
+		copy(res[i+1:], arr[i:])
+		return res
+	}
+
+	prev := make([]state, n)
+	for j := 0; j < n; j++ {
+		prev[j] = state{0, []int{}}
+	}
+
+	var best state
+	best.score = -1
+
+	// Перебираем количество выбранных интервалов от 1 до 4
+	for k := 1; k <= 4; k++ {
+		dp := make([]state, n)
+		pb := make([]state, n) // prefix best для текущего k
+
+		for j := 0; j < n; j++ {
+			// Ищем последний интервал, который не пересекается с текущим (r < l)
+			pos := sort.SearchInts(ris, sorted[j].l) - 1
+
+			if k == 1 {
+				dp[j] = state{int64(sorted[j].w), []int{sorted[j].idx}}
+			} else if pos >= 0 && prev[pos].score >= 0 {
+				dp[j] = state{
+					score:   prev[pos].score + int64(sorted[j].w),
+					indices: insertSorted(prev[pos].indices, sorted[j].idx),
+				}
+			} else {
+				dp[j] = state{-1, nil}
+			}
+
+			if j == 0 {
+				pb[j] = dp[j]
+			} else {
+				pb[j] = better(pb[j-1], dp[j])
+			}
+		}
+
+		best = better(best, pb[n-1])
+		prev = pb
+	}
+
+	if best.score < 0 {
+		return []int{}
+	}
+	return best.indices
+}
