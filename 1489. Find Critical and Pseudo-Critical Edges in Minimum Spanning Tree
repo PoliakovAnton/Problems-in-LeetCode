@@ -43,18 +43,15 @@ All pairs (ai, bi) are distinct.
 func findCriticalAndPseudoCriticalEdges(n int, edges [][]int) [][]int {
 	type edge struct{ u, v, w, idx int }
 
-	// Копируем рёбра с сохранением исходных индексов
 	sorted := make([]edge, len(edges))
 	for i, e := range edges {
 		sorted[i] = edge{e[0], e[1], e[2], i}
 	}
 
-	// Сортируем по весу
 	sort.Slice(sorted, func(i, j int) bool {
 		return sorted[i].w < sorted[j].w
 	})
 
-	// Union-Find
 	parent := make([]int, n)
 	rank := make([]int, n)
 	reset := func() {
@@ -85,16 +82,21 @@ func findCriticalAndPseudoCriticalEdges(n int, edges [][]int) [][]int {
 		return true
 	}
 
-	// kruskal: возвращает вес MST или -1, если остов невозможен
+	// skipIdx и forceIdx — оригинальные индексы рёбер (-1 = не используется)
 	kruskal := func(skipIdx, forceIdx int) int {
 		reset()
 		total, count := 0, 0
 
+		// Принудительно добавляем ребро forceIdx первым
 		if forceIdx != -1 {
-			e := sorted[forceIdx]
-			if union(e.u, e.v) {
-				total += e.w
-				count++
+			for _, e := range sorted {
+				if e.idx == forceIdx {
+					if union(e.u, e.v) {
+						total += e.w
+						count++
+					}
+					break
+				}
 			}
 		}
 
@@ -117,28 +119,18 @@ func findCriticalAndPseudoCriticalEdges(n int, edges [][]int) [][]int {
 		return total
 	}
 
-	// Находим позицию каждого исходного индекса в отсортированном массиве
-	pos := make(map[int]int)
-	for i, e := range sorted {
-		pos[e.idx] = i
-	}
-
 	mstWeight := kruskal(-1, -1)
 
 	var critical, pseudoCritical []int
 
 	for i := 0; i < len(edges); i++ {
-		sortedPos := pos[i]
-
-		// Критическое? Убираем ребро i — если MST стал тяжелее (или невозможен)
 		withoutEdge := kruskal(i, -1)
 		if withoutEdge == -1 || withoutEdge > mstWeight {
 			critical = append(critical, i)
 			continue
 		}
 
-		// Псевдо-критическое? Принудительно включаем ребро i
-		withEdge := kruskal(-1, sortedPos)
+		withEdge := kruskal(-1, i)
 		if withEdge == mstWeight {
 			pseudoCritical = append(pseudoCritical, i)
 		}
@@ -146,3 +138,4 @@ func findCriticalAndPseudoCriticalEdges(n int, edges [][]int) [][]int {
 
 	return [][]int{critical, pseudoCritical}
 }
+
