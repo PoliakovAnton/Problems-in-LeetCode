@@ -1,0 +1,148 @@
+Given a weighted undirected connected graph with n vertices numbered from 0 to n - 1, and an array edges where edges[i] = [ai, bi, weighti] represents a bidirectional and weighted edge between nodes ai and bi. A minimum spanning tree (MST) is a subset of the graph's edges that connects all vertices without cycles and with the minimum possible total edge weight.
+
+Find all the critical and pseudo-critical edges in the given graph's minimum spanning tree (MST). An MST edge whose deletion from the graph would cause the MST weight to increase is called a critical edge. On the other hand, a pseudo-critical edge is that which can appear in some MSTs but not all.
+
+Note that you can return the indices of the edges in any order.
+
+ 
+
+Example 1:
+
+
+
+Input: n = 5, edges = [[0,1,1],[1,2,1],[2,3,2],[0,3,2],[0,4,3],[3,4,3],[1,4,6]]
+Output: [[0,1],[2,3,4,5]]
+Explanation: The figure above describes the graph.
+The following figure shows all the possible MSTs:
+
+Notice that the two edges 0 and 1 appear in all MSTs, therefore they are critical edges, so we return them in the first list of the output.
+The edges 2, 3, 4, and 5 are only part of some MSTs, therefore they are considered pseudo-critical edges. We add them to the second list of the output.
+Example 2:
+
+
+
+Input: n = 4, edges = [[0,1,1],[1,2,1],[2,3,1],[0,3,1]]
+Output: [[],[0,1,2,3]]
+Explanation: We can observe that since all 4 edges have equal weight, choosing any 3 edges from the given 4 will yield an MST. Therefore all 4 edges are pseudo-critical.
+ 
+
+Constraints:
+
+2 <= n <= 100
+1 <= edges.length <= min(200, n * (n - 1) / 2)
+edges[i].length == 3
+0 <= ai < bi < n
+1 <= weighti <= 1000
+All pairs (ai, bi) are distinct.
+
+
+
+
+
+
+func findCriticalAndPseudoCriticalEdges(n int, edges [][]int) [][]int {
+	type edge struct{ u, v, w, idx int }
+
+	// Копируем рёбра с сохранением исходных индексов
+	sorted := make([]edge, len(edges))
+	for i, e := range edges {
+		sorted[i] = edge{e[0], e[1], e[2], i}
+	}
+
+	// Сортируем по весу
+	sort.Slice(sorted, func(i, j int) bool {
+		return sorted[i].w < sorted[j].w
+	})
+
+	// Union-Find
+	parent := make([]int, n)
+	rank := make([]int, n)
+	reset := func() {
+		for i := range parent {
+			parent[i] = i
+			rank[i] = 0
+		}
+	}
+	find := func(x int) int {
+		for parent[x] != x {
+			parent[x] = parent[parent[x]]
+			x = parent[x]
+		}
+		return x
+	}
+	union := func(x, y int) bool {
+		px, py := find(x), find(y)
+		if px == py {
+			return false
+		}
+		if rank[px] < rank[py] {
+			px, py = py, px
+		}
+		parent[py] = px
+		if rank[px] == rank[py] {
+			rank[px]++
+		}
+		return true
+	}
+
+	// kruskal: возвращает вес MST или -1, если остов невозможен
+	kruskal := func(skipIdx, forceIdx int) int {
+		reset()
+		total, count := 0, 0
+
+		if forceIdx != -1 {
+			e := sorted[forceIdx]
+			if union(e.u, e.v) {
+				total += e.w
+				count++
+			}
+		}
+
+		for _, e := range sorted {
+			if e.idx == skipIdx || e.idx == forceIdx {
+				continue
+			}
+			if union(e.u, e.v) {
+				total += e.w
+				count++
+				if count == n-1 {
+					break
+				}
+			}
+		}
+
+		if count != n-1 {
+			return -1
+		}
+		return total
+	}
+
+	// Находим позицию каждого исходного индекса в отсортированном массиве
+	pos := make(map[int]int)
+	for i, e := range sorted {
+		pos[e.idx] = i
+	}
+
+	mstWeight := kruskal(-1, -1)
+
+	var critical, pseudoCritical []int
+
+	for i := 0; i < len(edges); i++ {
+		sortedPos := pos[i]
+
+		// Критическое? Убираем ребро i — если MST стал тяжелее (или невозможен)
+		withoutEdge := kruskal(i, -1)
+		if withoutEdge == -1 || withoutEdge > mstWeight {
+			critical = append(critical, i)
+			continue
+		}
+
+		// Псевдо-критическое? Принудительно включаем ребро i
+		withEdge := kruskal(-1, sortedPos)
+		if withEdge == mstWeight {
+			pseudoCritical = append(pseudoCritical, i)
+		}
+	}
+
+	return [][]int{critical, pseudoCritical}
+}
