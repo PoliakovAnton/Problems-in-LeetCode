@@ -1,0 +1,84 @@
+You are installing a billboard and want it to have the largest height. The billboard will have two steel supports, one on each side. Each steel support must be an equal height.
+
+You are given a collection of rods that can be welded together. For example, if you have rods of lengths 1, 2, and 3, you can weld them together to make a support of length 6.
+
+Return the largest possible height of your billboard installation. If you cannot support the billboard, return 0.
+
+ 
+
+Example 1:
+
+Input: rods = [1,2,3,6]
+Output: 6
+Explanation: We have two disjoint subsets {1,2,3} and {6}, which have the same sum = 6.
+Example 2:
+
+Input: rods = [1,2,3,4,5,6]
+Output: 10
+Explanation: We have two disjoint subsets {2,3,5} and {4,6}, which have the same sum = 10.
+Example 3:
+
+Input: rods = [1,2]
+Output: 0
+Explanation: The billboard cannot be supported, so we return 0.
+ 
+
+Constraints:
+
+1 <= rods.length <= 20
+1 <= rods[i] <= 1000
+sum(rods[i]) <= 5000
+
+
+
+
+func tallestBillboard(rods []int) int {
+	// Максимальная возможная сумма всех стержней <= 5000, значит разница тоже не больше 5000.
+	// Сдвинем индекс на +5000, чтобы работать с неотрицательными индексами.
+	const offset = 5000
+	const maxDiff = 10000 // от -5000 до +5000 -> 10001 значений
+
+	// dp[d] = максимальная левая сумма при разнице (left - right) = d - offset
+	dp := make([]int, maxDiff+1)
+	for i := range dp {
+		dp[i] = -1 // -1 означает «недостижимо»
+	}
+	dp[offset] = 0 // разница 0, левая сумма 0
+
+	for _, x := range rods {
+		// делаем копию, чтобы не использовать текущий стержень несколько раз в одном шаге
+		newDp := make([]int, maxDiff+1)
+		copy(newDp, dp)
+
+		for diff := 0; diff <= maxDiff; diff++ {
+			if dp[diff] == -1 {
+				continue
+			}
+
+			leftSum := dp[diff]
+
+			// Вариант 1: добавить стержень в левую опору
+			// новая разница = (left + x) - right = (left - right) + x
+			ndiff1 := diff + x
+			if ndiff1 <= maxDiff {
+				nlSum1 := leftSum + x
+				if nlSum1 > newDp[ndiff1] {
+					newDp[ndiff1] = nlSum1
+				}
+			}
+
+			// Вариант 2: добавить стержень в правую опору
+			// новая разница = left - (right + x) = (left - right) - x
+			ndiff2 := diff - x
+			if ndiff2 >= 0 {
+				// левая сумма не меняется
+				if leftSum > newDp[ndiff2] {
+					newDp[ndiff2] = leftSum
+				}
+			}
+		}
+		dp = newDp
+	}
+
+	return dp[offset]
+}
