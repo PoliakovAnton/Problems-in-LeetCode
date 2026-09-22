@@ -1,0 +1,75 @@
+You are given an integer array nums.
+
+You should move each element of nums into one of the two arrays A and B such that A and B are non-empty, and average(A) == average(B).
+
+Return true if it is possible to achieve that and false otherwise.
+
+Note that for an array arr, average(arr) is the sum of all the elements of arr over the length of arr.
+
+ 
+
+Example 1:
+
+Input: nums = [1,2,3,4,5,6,7,8]
+Output: true
+Explanation: We can split the array into [1,4,5,8] and [2,3,6,7], and both of them have an average of 4.5.
+Example 2:
+
+Input: nums = [3,1]
+Output: false
+ 
+
+Constraints:
+
+1 <= nums.length <= 30
+0 <= nums[i] <= 104
+
+
+
+
+
+
+
+
+func splitArraySameAverage(nums []int) bool {
+	n := len(nums)
+	if n < 2 {
+		return false
+	}
+
+	sum := 0
+	for _, v := range nums {
+		sum += v
+	}
+
+	// dp[k] — множество сумм, которые можно набрать ровно k элементами.
+	// Достаточно хранить до n/2 элементов, т.к. задача симметрична.
+	maxK := n / 2
+	dp := make([]map[int]struct{}, maxK+1)
+	for k := 0; k <= maxK; k++ {
+		dp[k] = make(map[int]struct{})
+	}
+	dp[0][0] = struct{}{}
+
+	for _, x := range nums {
+		// идём по k в обратном порядке, чтобы не использовать один элемент несколько раз для одного k
+		for k := maxK; k >= 1; k-- {
+			for s := range dp[k-1] {
+				dp[k][s+x] = struct{}{}
+			}
+		}
+	}
+
+	// Проверяем все возможные размеры k от 1 до maxK
+	for k := 1; k <= maxK; k++ {
+		// target = (sum * k) / n должно быть целым
+		if (sum*k)%n == 0 {
+			target := (sum * k) / n
+			if _, ok := dp[k][target]; ok {
+				return true
+			}
+		}
+	}
+
+	return false
+}
