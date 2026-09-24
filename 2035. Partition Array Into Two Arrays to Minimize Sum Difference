@@ -1,0 +1,122 @@
+You are given an integer array nums of 2 * n integers. You need to partition nums into two arrays of length n to minimize the absolute difference of the sums of the arrays. To partition nums, put each element of nums into one of the two arrays.
+
+Return the minimum possible absolute difference.
+
+ 
+
+Example 1:
+
+example-1
+Input: nums = [3,9,7,3]
+Output: 2
+Explanation: One optimal partition is: [3,9] and [7,3].
+The absolute difference between the sums of the arrays is abs((3 + 9) - (7 + 3)) = 2.
+Example 2:
+
+Input: nums = [-36,36]
+Output: 72
+Explanation: One optimal partition is: [-36] and [36].
+The absolute difference between the sums of the arrays is abs((-36) - (36)) = 72.
+Example 3:
+
+example-3
+Input: nums = [2,-1,0,4,-2,-9]
+Output: 0
+Explanation: One optimal partition is: [2,4,-9] and [-1,0,-2].
+The absolute difference between the sums of the arrays is abs((2 + 4 + -9) - (-1 + 0 + -2)) = 0.
+ 
+
+Constraints:
+
+1 <= n <= 15
+nums.length == 2 * n
+-107 <= nums[i] <= 107
+
+
+import (
+	"math"
+	"sort"
+)
+
+func minimumDifference(nums []int) int {
+	n := len(nums) / 2
+	total := 0
+	for _, v := range nums {
+		total += v
+	}
+
+	left := nums[:n]
+	right := nums[n:]
+
+	// leftSums[k] — все возможные суммы ровно k элементов из левой половины
+	leftSums := genSumsByCount(left)
+	// rightSums[k] — все возможные суммы ровно k элементов из правой половины
+	rightSums := genSumsByCount(right)
+
+	// Сортируем правые суммы для бинарного поиска
+	for k := 0; k <= n; k++ {
+		sort.Ints(rightSums[k])
+	}
+
+	result := math.MaxInt
+
+	// Перебираем: берём k из левой половины и (n-k) из правой
+	for k := 0; k <= n; k++ {
+		// target: s_left + s_right ≈ total/2  =>  s_right ≈ total/2 - s_left
+		for _, sl := range leftSums[k] {
+			need := total/2 - sl // приближённая цель для s_right
+			rk := n - k
+			arr := rightSums[rk]
+
+			// Бинарный поиск ближайшего к need
+			idx := sort.Search(len(arr), func(i int) bool {
+				return arr[i] >= need
+			})
+
+			if idx < len(arr) {
+				diff := abs(total - 2*(sl+arr[idx]))
+				if diff < result {
+					result = diff
+				}
+			}
+			if idx > 0 {
+				diff := abs(total - 2*(sl+arr[idx-1]))
+				if diff < result {
+					result = diff
+				}
+			}
+
+			if result == 0 {
+				return 0
+			}
+		}
+	}
+
+	return result
+}
+
+// genSumsByCount возвращает массив, где элемент [k] — список всех сумм
+// ровно k элементов из arr
+func genSumsByCount(arr []int) [][]int {
+	n := len(arr)
+	res := make([][]int, n+1)
+
+	var backtrack func(i int, count int, sum int)
+	backtrack = func(i int, count int, sum int) {
+		if i == n {
+			res[count] = append(res[count], sum)
+			return
+		}
+		backtrack(i+1, count, sum)        // не берём arr[i]
+		backtrack(i+1, count+1, sum+arr[i]) // берём arr[i]
+	}
+	backtrack(0, 0, 0)
+	return res
+}
+
+func abs(x int) int {
+	if x < 0 {
+		return -x
+	}
+	return x
+}
